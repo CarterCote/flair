@@ -4,41 +4,75 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const router = useRouter();
-    const [user, setUser] = useState<User | null>(null);
+    // const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
     const supabase = createClientComponentClient();
 
     useEffect(() => {
-        async function getUser() {
-            const { data } = await supabase.auth.getUser();
-            // const {data: {user}} = await supabase.auth.getUser();
-            setUser(data.user);
+        // Listen for changes in authentication state
+        const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+            const user = session?.user || null;
+            setUser(user);
             setLoading(false);
-            
-        } 
+            if (user) {
+                // Redirect here inside the listener callback
+                router.replace('/');
+            }
+        });
 
+        // Fetch the user on initial load
         getUser();
+
+        // Cleanup the listener when the component unmounts
+        return () => {
+            authListener.unsubscribe();
+        };
     }, []);
+    async function getUser() {
+        const { data } = await supabase.auth.getUser();
+        setUser(data.user);
+        setLoading(false);
+    }
+
+    const [user, setUser] = useState<User | null>(null);
+    // useEffect(() => {
+    //     async function getUser() {
+    //         const { data } = await supabase.auth.getUser();
+    //         // const {data: {user}} = await supabase.auth.getUser();
+    //         setUser(data.user);
+    //         setLoading(false);
+            
+    //     } 
+
+    //     getUser();
+    // }, []);
 
     const handleSignUp = async () => {
-        const { data, error } = await supabase.auth.signUp({
+        setLoading(true);
+        const { error } = await supabase.auth.signUp({
+
+        // const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
                 emailRedirectTo: `${location.origin}/auth/callback`
             }
-        })
+        });
         if (error) {
             console.log("sign up error: ", error);
-        } else {
-            setUser(data.user);
-            router.replace('/'); // Adjust the path as needed
+            setLoading(false);
+        // } else {
+            
+        //     setUser(data.user);
+        //     router.replace('/'); // Adjust the path as needed
         }
         // router.refresh();
         setEmail('');
@@ -100,29 +134,26 @@ export default function LoginPage() {
     return (
         <main className="h-screen flex item-center justify-center bg-gray-800 p-6">
             <div className = "bg-gray-900 p-8 rounder-lg shadow-md w-96">
-                <input
+                <Input
                 type="email"
                 name="email"
                 value={email}
+                placeholder="Email"
                 onChange={(e) => setEmail(e.target.value)}
                 className="mb-4 w-full p-3 rounded-md border border-gray-700 bg-gray-800 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
                 />
-                <input
+                <Input
                 type="password"
                 name="password"
                 value={password}
+                placeholder="Password"
                 onChange={(e) => setPassword(e.target.value)}
                 className="mb-4 w-full p-3 rounded-md border border-gray-700 bg-gray-800 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
 
                 />
+                <Button onClick={handleSignUp} variant="outline">Sign Up</Button>
+                <Button onClick={handleSignIn} variant="outline">Sign In</Button>
 
-                <button onClick={handleSignUp}
-                className="w-full mb-2 p-3 rounded-md bg-blue-600 text-white hover:bg-blue-700 focus:outline-none"
-                >Sign Up</button>
-                <button onClick={handleSignIn}
-                className="w-full mb-2 p-3 rounded-md bg-gray-700 text-white hover:bg-gray-600 focus:outline-none"
-
-                >Sign In</button>
             </div>
         </main>
     )
